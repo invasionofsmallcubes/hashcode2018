@@ -12,83 +12,117 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static java.lang.Integer.valueOf;
 import static java.lang.Math.abs;
+import static java.util.Comparator.comparingInt;
 
 public class ReadFileTest {
     @Test
     public void readFile() throws IOException, URISyntaxException {
-        Stream.of("a_example", "b_should_be_easy", "c_no_hurry", "d_metropolis", "e_high_bonus").forEach(filename -> {
-            List<String> lines = null;
-            try {
-                lines = getLines("/"+filename+".in");
+        Stream.of(
+                "a_example",
+                "b_should_be_easy",
+                "c_no_hurry",
+                "d_metropolis",
+                "e_high_bonus"
+        )
+                .forEach(filename -> {
+                    List<String> lines = null;
+                    try {
+                        lines = getLines("/" + filename + ".in");
 
-                String firstLine = lines.get(0);
-                String[] splittedElements = firstLine.split(" ");
-                int rowsNumber = valueOf(splittedElements[0]);
-                int columnsNumber = valueOf(splittedElements[1]);
-                int fleetNumber = valueOf(splittedElements[2]);
-                int ridesNumber = valueOf(splittedElements[3]);
-                int bonusPerRideStartingOnTime = valueOf(splittedElements[4]);
-                int steps = valueOf(splittedElements[5]);
+                        String firstLine = lines.get(0);
+                        String[] splittedElements = firstLine.split(" ");
+                        int rowsNumber = valueOf(splittedElements[0]);
+                        int columnsNumber = valueOf(splittedElements[1]);
+                        int fleetNumber = valueOf(splittedElements[2]);
+                        int ridesNumber = valueOf(splittedElements[3]);
+                        int bonusPerRideStartingOnTime = valueOf(splittedElements[4]);
+                        int steps = valueOf(splittedElements[5]);
 
-                Conf conf = new Conf(rowsNumber, columnsNumber, fleetNumber, ridesNumber, bonusPerRideStartingOnTime, steps);
-                System.out.println(conf);
+                        Conf conf = new Conf(rowsNumber, columnsNumber, fleetNumber, ridesNumber, bonusPerRideStartingOnTime, steps);
+                        System.out.println(conf);
 
-                List<Ride> rides = new ArrayList();
+                        List<Ride> rides = new ArrayList();
 
-                for (int i = 1; i <= ridesNumber; i++) {
-                    String[] currentRide = lines.get(i).split(" ");
-                    int startingRow = valueOf(currentRide[0]);
-                    int startingColumn = valueOf(currentRide[1]);
-                    int endRow = valueOf(currentRide[2]);
-                    int endColumn = valueOf(currentRide[3]);
-                    int ts = valueOf(currentRide[4]);
-                    int tf = valueOf(currentRide[5]);
-                    int rideIndex = i - 1;
-                    Ride r = new Ride(startingRow, startingColumn, endRow, endColumn, ts, tf, rideIndex, rideIndex);
-//            System.out.println(r);
-                    rides.add(r);
-                }
+                        for (int i = 1; i <= ridesNumber; i++) {
+                            String[] currentRide = lines.get(i).split(" ");
+                            int startingRow = valueOf(currentRide[0]);
+                            int startingColumn = valueOf(currentRide[1]);
+                            int endRow = valueOf(currentRide[2]);
+                            int endColumn = valueOf(currentRide[3]);
+                            int ts = valueOf(currentRide[4]);
+                            int tf = valueOf(currentRide[5]);
+                            int rideIndex = i - 1;
+                            Ride r = new Ride(startingRow, startingColumn, endRow, endColumn, ts, tf, rideIndex, rideIndex);
 
-                List<Vehicle> vehicles = new ArrayList<>();
-                for (int v = 1; v <= conf.fleetNumber; v++) {
-                    vehicles.add(new Vehicle(v));
-                }
+//                            System.out.println(r);
 
-                for (int step = 0; step < conf.steps; step++) {
-                    for (int v = 0; v < conf.fleetNumber; v++) {
-                        final int currentStep = step;
-                        final Vehicle vehicle = vehicles.get(v);
-                        if (vehicle.isFree()) {
-                            Optional<Score> max = selectNextRide(conf, rides, currentStep, vehicle);
-                            max.ifPresent(s -> {
-//                        System.out.println("Chosen: " + s.ride + " for vechicle:" + vehicle.v);
-                                vehicle.currentRide(s.ride, s.dConnection);
-                                rides.remove(s.ride);
-                                vehicle.move(currentStep);
-                            });
-                        } else {
-                            vehicle.move(currentStep);
+                            rides.add(r);
                         }
+
+                        List<Vehicle> vehicles = new ArrayList<>();
+                        for (int v = 1; v <= conf.fleetNumber; v++) {
+                            vehicles.add(new Vehicle(v));
+                        }
+
+
+                        rides.sort(comparingInt(x -> (x.startingRow + x.startingColumn)));
+
+                        List<List<RideK>> finalList = new ArrayList<>(vehicles.size());
+                        int vehicleCount = 0;
+                        while (rides.size() > 0 && vehicleCount < vehicles.size()) {
+
+                            List<RideK> list = new ArrayList<>();
+
+                            Ride currentRide = rides.get(0);
+                            rides.remove(currentRide);
+
+                            RideK currentRideK = new RideK(currentRide, currentRide.distance + (currentRide.startingRow + currentRide.startingColumn));
+                            list.add(currentRideK);
+
+                            for (int i = 0; i < rides.size(); i++) {
+
+                                final Ride ridedddd = currentRide;
+                                rides.sort(Comparator.comparingInt(x -> (abs(x.startingRow - ridedddd.endRow) + abs(x.startingColumn - ridedddd.endColumn))));
+
+                                Ride nextRide = rides.get(0);
+                                RideK nextRideK = new RideK(nextRide, currentRideK.actualEndTime + abs(nextRide.startingRow - currentRide.endRow) + abs(nextRide.startingColumn - currentRide.endColumn) + nextRide.distance);
+
+                                if (nextRideK.actualEndTime < conf.steps) {
+                                    list.add(nextRideK);
+                                    rides.remove(nextRide);
+                                    currentRide = nextRide;
+                                    currentRideK = nextRideK;
+                                }
+                            }
+
+                            finalList.add(list);
+                            vehicleCount++;
+                            rides.sort(comparingInt(x -> (x.startingRow + x.startingColumn)));
+
+                        }
+
+                        String output = finalList
+                                .stream()
+                                .map(v -> v.size() + " " + v.stream().map(r -> "" + r.firstRide.rideIndex).collect(Collectors.joining(" ")))
+                                .collect(Collectors.joining("\n"));
+
+                        int remaining = vehicles.size() - finalList.size();
+
+                        if(remaining > 0) {
+                            output += "\n" + IntStream.range(0, remaining).mapToObj((e) ->"0").collect(Collectors.joining("\n"));
+                        }
+
+                        Files.write(new File(filename + ".out").toPath(), output.getBytes());
+                    } catch (IOException e) {
+                        e.printStackTrace();
                     }
-                }
+                });
 
-                String output = vehicles
-                        .stream()
-                        .map(v -> v.rides.size() + " " + v.rides.stream().map(r -> "" + r.rideIndex).collect(Collectors.joining(" ")))
-                        .collect(Collectors.joining("\n"));
-
-                Files.write(new File(filename+".out").toPath(), output.getBytes());
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        });
-
-//        assertThat(lines.size(), is(4));
-//        assertThat(rides.size(), is(0));
     }
 
     private Optional<Score> selectNextRide(Conf conf, List<Ride> rides, int currentStep, Vehicle vehicle) {
@@ -113,10 +147,9 @@ public class ReadFileTest {
                         score.score += 1;
                     }
 
-//                    System.out.println(score);
                     return score;
                 }
-        ).max(Comparator.comparingInt(x -> x.score));
+        ).max(comparingInt(x -> x.score));
     }
 
     private List<String> getLines(String inputFile) throws IOException {
@@ -272,6 +305,16 @@ public class ReadFileTest {
 
         public void addRide(Ride ride) {
             rides.add(ride);
+        }
+    }
+
+    private class RideK {
+        public final Ride firstRide;
+        public final int actualEndTime;
+
+        public RideK(Ride ride, int actualEndTime) {
+            this.firstRide = ride;
+            this.actualEndTime = actualEndTime;
         }
     }
 }
