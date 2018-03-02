@@ -23,11 +23,11 @@ public class ReadFileTest {
     @Test
     public void readFile() throws IOException, URISyntaxException {
         Stream.of(
-                "a_example",
-                "b_should_be_easy",
-                "c_no_hurry",
-                "d_metropolis",
-                "e_high_bonus"
+//                "a_example",
+//                "b_should_be_easy",
+//                "c_no_hurry",
+                "d_metropolis"//,
+//                "e_high_bonus"
         )
                 .forEach(filename -> {
                     List<String> lines = null;
@@ -46,7 +46,7 @@ public class ReadFileTest {
                         Conf conf = new Conf(rowsNumber, columnsNumber, fleetNumber, ridesNumber, bonusPerRideStartingOnTime, steps);
                         System.out.println(conf);
 
-                        List<Ride> rides = new ArrayList();
+                        List<Ride> rides = new ArrayList<>();
 
                         for (int i = 1; i <= ridesNumber; i++) {
                             String[] currentRide = lines.get(i).split(" ");
@@ -58,8 +58,6 @@ public class ReadFileTest {
                             int tf = valueOf(currentRide[5]);
                             int rideIndex = i - 1;
                             Ride r = new Ride(startingRow, startingColumn, endRow, endColumn, ts, tf, rideIndex, rideIndex);
-
-//                            System.out.println(r);
 
                             rides.add(r);
                         }
@@ -74,6 +72,10 @@ public class ReadFileTest {
 
                         List<List<RideK>> finalList = new ArrayList<>(vehicles.size());
                         int vehicleCount = 0;
+
+                        int cutSize = conf.fleetNumber/conf.ridesNumber;
+                        System.out.println(cutSize + " " + conf.fleetNumber + " " + conf.ridesNumber);
+
                         while (rides.size() > 0 && vehicleCount < vehicles.size()) {
 
                             List<RideK> list = new ArrayList<>();
@@ -97,6 +99,10 @@ public class ReadFileTest {
                                     rides.remove(nextRide);
                                     currentRide = nextRide;
                                     currentRideK = nextRideK;
+                                }
+                                if(24 == list.size() && vehicleCount < vehicles.size()) {
+                                    System.out.println("Cut!" + list.size());
+                                    break;
                                 }
                             }
 
